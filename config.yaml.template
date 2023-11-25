@@ -1,0 +1,9 @@
+# quota: 33
+smtp_server:
+  server: smtp.gmail.com
+  port: 587
+  username: john.doe@gmail.com
+  password: vhibrvobsjvobsnj
+  from: john.doe@gmail.com
+allowed_emails:
+  - me@john-doe.it
