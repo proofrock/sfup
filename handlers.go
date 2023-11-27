@@ -27,6 +27,8 @@ import (
 
 const mailTemplate = `<p>Hi!</p><p>&nbsp;&nbsp;Use this command to upload your file:</p><pre>
 curl -s %s/bash/%d|sh -s -- &lt;filename&gt;
+</pre><p>or, simpler (and windows-compatible):</p><pre>
+curl -qF "file=@&lt;filename&gt;" %s/ul/%d
 </pre><p>Have fun!</p><p>-- sfup</p>`
 
 func reserve(db *sql.DB) func(*fiber.Ctx) error {
@@ -44,14 +46,14 @@ func reserve(db *sql.DB) func(*fiber.Ctx) error {
 			panic(err)
 		}
 
-		sendEmail(mail, "Your SFUP reservation", fmt.Sprintf(mailTemplate, c.BaseURL(), id))
+		sendEmail(mail, "Your SFUP reservation", fmt.Sprintf(mailTemplate, c.BaseURL(), id, c.BaseURL(), id))
 
-		return c.SendString("\nWe sent you an email with instructions!\n")
+		return c.SendString("\nOk, all set up. We sent you an email with instructions!\n")
 	}
 }
 
 const template = `#!/bin/bash
-curl -q -F "file=@$1" %s/ul/%s`
+curl -qF "file=@$1" %s/ul/%s`
 
 func bash(c *fiber.Ctx) error {
 	id := c.Params("id")
@@ -82,7 +84,7 @@ func upload(db *sql.DB) func(*fiber.Ctx) error {
 		}
 
 		c.SaveFile(file, dataDir(id))
-		return c.SendString(fmt.Sprintf("\nNow, to download, use: curl -OJ %s/dl/%s\n", c.BaseURL(), id))
+		return c.SendString(fmt.Sprintf("\nOk, upload done. Now, to download the file, use:\n  curl -OJ %s/dl/%s\n", c.BaseURL(), id))
 	}
 }
 

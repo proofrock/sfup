@@ -40,7 +40,7 @@ For the `config.yaml` file, see and adapt `config.yaml.template` in this reposit
 
 It's pretty basic for now. Future plans:
 
-- Windows compatibility
+- Better Windows compatibility
 - Expiration of reservations and files
 - Quotas
 - E2e encryption
