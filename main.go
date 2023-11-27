@@ -39,6 +39,7 @@ type Smtp struct {
 
 type Conf struct {
 	Quota         int      `yaml:"quota"`
+	MaxFileSize   int      `yaml:"max_file_size"`
 	SMTP          Smtp     `yaml:"smtp_server"`
 	AllowedEmails []string `yaml:"allowed_emails"`
 }
@@ -96,6 +97,7 @@ func main() {
 	app := fiber.New(fiber.Config{
 		BodyLimit: 1024 * 1024 * 1024,
 		// AppName:   "SFUP",
+		BodyLimit:             config.MaxFileSize,
 		DisableStartupMessage: true,
 	})
 

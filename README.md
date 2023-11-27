@@ -27,7 +27,7 @@ For the `config.yaml` file, see and adapt `config.yaml.template` in this reposit
 # Features
 
 - One-time everything: files are stored up to the first (and only) download
-- Support files up to 1Gb
+- Configuration to set the maximum file size
 - Single binary written in Go
 - Very compact codebase
 
