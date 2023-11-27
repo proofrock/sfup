@@ -1,5 +1,5 @@
 # sfup - transfer service for commandline usage
-## v0.0.1
+## v0.0.2
 
 Imagine to have two headless servers, and needing to transfer a file between them. But the servers cannot connect to each other. And of course, being on the commandline, you can't use WeTransfer, Dropbox, ecc...
 
