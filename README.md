@@ -27,6 +27,7 @@ For the `config.yaml` file, see and adapt `config.yaml.template` in this reposit
 # Features
 
 - One-time everything: files are stored up to the first (and only) download
+- Expiration of reservations and files
 - Configuration to set the maximum file size
 - Single binary written in Go
 - Very compact codebase
@@ -41,9 +42,7 @@ For the `config.yaml` file, see and adapt `config.yaml.template` in this reposit
 It's pretty basic for now. Future plans:
 
 - Better Windows compatibility
-- Expiration of reservations and files
 - Quotas
 - E2e encryption
 - Checksumming
-- Configuration to set the maximum file size
 - Web UI to download files

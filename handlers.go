@@ -41,7 +41,7 @@ func reserve(db *sql.DB) func(*fiber.Ctx) error {
 
 		id := rand.Int31()
 
-		_, err := db.Exec("INSERT INTO SFUP (id, name) VALUES (?,  NULL)", id)
+		_, err := db.Exec("INSERT INTO SFUP (id, name, last_upd) VALUES (?,  NULL, CURRENT_TIMESTAMP)", id)
 		if err != nil {
 			panic(err)
 		}
@@ -75,7 +75,7 @@ func upload(db *sql.DB) func(*fiber.Ctx) error {
 
 		f.Close()
 
-		n, err := db.Exec("UPDATE SFUP SET name = ? WHERE id = ?", file.Filename, id)
+		n, err := db.Exec("UPDATE SFUP SET name = ?, last_upd = CURRENT_TIMESTAMP WHERE id = ?", file.Filename, id)
 		if err != nil {
 			panic(err)
 		}

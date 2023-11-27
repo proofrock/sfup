@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"time"
 
 	"database/sql"
 
@@ -39,6 +40,7 @@ type Smtp struct {
 
 type Conf struct {
 	Quota         int      `yaml:"quota"`
+	Expiration    int      `yaml:"expire_after"`
 	MaxFileSize   int      `yaml:"max_file_size"`
 	SMTP          Smtp     `yaml:"smtp_server"`
 	AllowedEmails []string `yaml:"allowed_emails"`
@@ -56,6 +58,12 @@ var args Args
 func dataDir(fname string) string {
 	return fmt.Sprintf("%s/%s", args.DataDir, fname)
 }
+
+const sqlCreation = `CREATE TABLE IF NOT EXISTS SFUP (
+	id INTEGER PRIMARY KEY,
+	name TEXT,
+	last_upd TEXT
+)`
 
 func main() {
 	_configFile := flag.String("config-file", "config.yaml", "Path to configuration file")
@@ -88,14 +96,23 @@ func main() {
 	}
 	defer db.Close()
 
-	_, err = db.Exec("CREATE TABLE IF NOT EXISTS SFUP (id INTEGER PRIMARY KEY, name TEXT)")
+	_, err = db.Exec(sqlCreation)
 	if err != nil {
 		log.Fatal(err)
 	}
 
+	// Periodic execution
+	go func() {
+		for {
+			if _err := cleanup(db); _err != nil {
+				println("TASK ERROR:", _err.Error())
+			}
+			time.Sleep(11 * time.Minute)
+		}
+	}()
+
 	// Fiber instance
 	app := fiber.New(fiber.Config{
-		BodyLimit: 1024 * 1024 * 1024,
 		// AppName:   "SFUP",
 		BodyLimit:             config.MaxFileSize,
 		DisableStartupMessage: true,

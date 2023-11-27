@@ -1,4 +1,5 @@
 # quota: 33
+expire_after: 24 # hours
 max_file_size: 268435456 # 256Mb
 smtp_server:
   server: smtp.gmail.com
