@@ -61,7 +61,11 @@ func dataDir(fname string) string {
 
 const sqlCreation = `CREATE TABLE IF NOT EXISTS SFUP (
 	id INTEGER PRIMARY KEY,
-	name TEXT,
+	iv_file BLOB,
+	iv_name BLOB,
+	name BLOB,
+	iv_hash BLOB,
+	hash BLOB,
 	last_upd TEXT
 )`
 
@@ -118,7 +122,7 @@ func main() {
 		DisableStartupMessage: true,
 	})
 
-	fmt.Fprint(os.Stdout, "SFUP v0.0.2\n")
+	fmt.Fprint(os.Stdout, "SFUP v0.1.0\n")
 
 	app.Use(recover.New())
 
