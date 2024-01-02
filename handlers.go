@@ -15,10 +15,13 @@
 package main
 
 import (
+	"bytes"
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
+	"crypto/sha256"
 	"database/sql"
+	"encoding/base64"
 	"fmt"
 	"io"
 	"log"
@@ -32,6 +35,8 @@ import (
 var maxId = big.NewInt(2147483647)
 
 const AESSize = 128 >> 3
+
+const IntegrityCheckFailedCode = 599
 
 const mailTemplate = `<p>Hi, and thanks for using SFUP!</p>
 <p>&nbsp;&nbsp;Use this command to upload your file:</p>
@@ -78,7 +83,7 @@ func bash(c *fiber.Ctx) error {
 	return c.SendString(fmt.Sprintf(template, c.BaseURL(), id))
 }
 
-const dlUrlTemplate = "%s/dl/%s"
+const dlUrlTemplate = "%s/dl/%s?key=%s"
 const dlMsgTemplate = `
 Upload done! To download the file, either use a browser:
 
@@ -86,9 +91,12 @@ Upload done! To download the file, either use a browser:
 
 or, from the commandline:
 
-  curl -OJ %s
+  curl -OJf %s
 
 The file will be deleted from SFUP after the download.
+
+Please note that if the integrity check fails, the call will return a status
+code of 599.
 
 Have fun!
 `
@@ -114,11 +122,13 @@ func upload(db *sql.DB) func(*fiber.Ctx) error {
 		if err != nil {
 			panic(err.Error())
 		}
-		ivName := randBytes(aesName.BlockSize())
 		fnBytes := []byte(file.Filename)
-		encName := make([]byte, len(fnBytes))
-		ctrName := cipher.NewCTR(aesName, ivName)
-		ctrName.XORKeyStream(encName, fnBytes)
+		gcmName, err := cipher.NewGCM(aesName)
+		if err != nil {
+			panic(err.Error())
+		}
+		ivName := randBytes(gcmName.NonceSize())
+		encName := gcmName.Seal(nil, ivName, fnBytes, nil)
 
 		aesFile, err := aes.NewCipher(key)
 		if err != nil {
@@ -140,16 +150,36 @@ func upload(db *sql.DB) func(*fiber.Ctx) error {
 		}
 		defer outFile.Close()
 
-		sw := &cipher.StreamWriter{
+		outWriter := &cipher.StreamWriter{
 			S: cipher.NewCTR(aesFile, ivFile),
 			W: outFile,
 		}
 
-		if _, err := io.Copy(sw, f); err != nil {
+		hashFn := sha256.New()
+		hashWriter := io.MultiWriter(hashFn, outWriter)
+
+		if _, err := io.Copy(hashWriter, f); err != nil {
 			panic(err)
 		}
 
-		url := fmt.Sprintf(dlUrlTemplate, c.BaseURL(), id)
+		url := fmt.Sprintf(dlUrlTemplate, c.BaseURL(), id, base64.URLEncoding.WithPadding(base64.NoPadding).EncodeToString(key))
+
+		aesHash, err := aes.NewCipher(key)
+		if err != nil {
+			panic(err.Error())
+		}
+		gcmHash, err := cipher.NewGCM(aesHash)
+		if err != nil {
+			panic(err.Error())
+		}
+		ivHash := randBytes(gcmHash.NonceSize())
+		encHash := gcmHash.Seal(nil, ivHash, hashFn.Sum(make([]byte, hashFn.Size())), nil)
+
+		_, err = db.Exec("UPDATE SFUP SET iv_hash = ?, hash = ? WHERE id = ?", ivHash, encHash, id)
+		if err != nil {
+			panic(err)
+		}
+
 		return c.SendString(fmt.Sprintf(dlMsgTemplate, url, url))
 	}
 }
@@ -157,11 +187,20 @@ func upload(db *sql.DB) func(*fiber.Ctx) error {
 func download(db *sql.DB) func(*fiber.Ctx) error {
 	return func(c *fiber.Ctx) error {
 		id := c.Params("id")
-		file := dataDir(id)
+		fileName := dataDir(id)
+		key, err := base64.URLEncoding.WithPadding(base64.NoPadding).DecodeString(c.Query("key"))
+		if err != nil {
+			panic(err.Error())
+		}
 
-		row := db.QueryRow("SELECT name FROM SFUP WHERE id = ?", id)
-		var name string
-		err := row.Scan(&name)
+		file, err := os.Open(fileName)
+		if err != nil {
+			panic(err)
+		}
+
+		row := db.QueryRow("SELECT iv_file, iv_name, name, iv_hash, hash FROM SFUP WHERE id = ?", id)
+		var ivFile, ivName, encName, ivHash, encHash []byte
+		err = row.Scan(&ivFile, &ivName, &encName, &ivHash, &encHash)
 		if err != nil {
 			if err == sql.ErrNoRows {
 				return c.Status(fiber.StatusNotFound).SendString("Invalid ID or already used")
@@ -169,12 +208,60 @@ func download(db *sql.DB) func(*fiber.Ctx) error {
 			log.Fatal(err)
 		}
 
+		aesName, err := aes.NewCipher(key)
+		if err != nil {
+			panic(err.Error())
+		}
+		gcmName, err := cipher.NewGCM(aesName)
+		if err != nil {
+			panic(err.Error())
+		}
+		name, err := gcmName.Open(nil, ivName, encName, nil)
+		if err != nil {
+			panic(err.Error())
+		}
+
+		aesHash, err := aes.NewCipher(key)
+		if err != nil {
+			panic(err.Error())
+		}
+		gcmHash, err := cipher.NewGCM(aesHash)
+		if err != nil {
+			panic(err.Error())
+		}
+		origHash, err := gcmHash.Open(nil, ivHash, encHash, nil)
+		if err != nil {
+			panic(err.Error())
+		}
+
+		aesFile, err := aes.NewCipher(key)
+		if err != nil {
+			panic(err.Error())
+		}
+
 		defer func() {
 			_, _ = db.Exec("DELETE FROM SFUP WHERE id = ?", id)
-			os.Remove(file)
+			os.Remove(fileName)
 		}()
 
 		c.Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", name))
-		return c.SendFile(file, true)
+
+		hashFn := sha256.New()
+
+		outWriter := &cipher.StreamWriter{
+			S: cipher.NewCTR(aesFile, ivFile),
+			W: io.MultiWriter(hashFn, c),
+		}
+
+		if _, err := io.Copy(outWriter, file); err != nil {
+			panic(err)
+		}
+
+		hash := hashFn.Sum(make([]byte, hashFn.Size()))
+
+		if !bytes.Equal(origHash, hash) {
+			return c.SendStatus(IntegrityCheckFailedCode)
+		}
+		return c.SendStatus(fiber.StatusOK)
 	}
 }

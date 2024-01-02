@@ -64,6 +64,8 @@ const sqlCreation = `CREATE TABLE IF NOT EXISTS SFUP (
 	iv_file BLOB,
 	iv_name BLOB,
 	name BLOB,
+	iv_hash BLOB,
+	hash BLOB,
 	last_upd TEXT
 )`
 
