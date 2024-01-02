@@ -25,11 +25,17 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-const mailTemplate = `<p>Hi!</p><p>&nbsp;&nbsp;Use this command to upload your file:</p><pre>
+const mailTemplate = `<p>Hi, and thanks for using SFUP!</p>
+<p>&nbsp;&nbsp;Use this command to upload your file:</p>
+<pre>
 curl -s %s/bash/%d|sh -s -- &lt;filename&gt;
-</pre><p>or, simpler (and windows-compatible):</p><pre>
+</pre>
+<p>or, simpler (and windows-compatible):</p>
+<pre>
 curl -qF "file=@&lt;filename&gt;" %s/ul/%d
-</pre><p>Have fun!</p><p>-- sfup</p>`
+</pre>
+<p>Have fun!</p>
+<p>-- sfup</p>`
 
 func reserve(db *sql.DB) func(*fiber.Ctx) error {
 	return func(c *fiber.Ctx) error {
@@ -60,6 +66,21 @@ func bash(c *fiber.Ctx) error {
 	return c.SendString(fmt.Sprintf(template, c.BaseURL(), id))
 }
 
+const dlUrlTemplate = "%s/dl/%s"
+const dlMsgTemplate = `
+Upload done! To download the file, either use a browser:
+
+  %s
+
+or, from the commandline:
+
+  curl -OJ %s
+
+The file will be deleted from SFUP after the download.
+
+Have fun!
+`
+
 func upload(db *sql.DB) func(*fiber.Ctx) error {
 	return func(c *fiber.Ctx) error {
 		id := c.Params("id")
@@ -84,7 +105,9 @@ func upload(db *sql.DB) func(*fiber.Ctx) error {
 		}
 
 		c.SaveFile(file, dataDir(id))
-		return c.SendString(fmt.Sprintf("\nOk, upload done. Now, to download the file, use:\n  curl -OJ %s/dl/%s\n", c.BaseURL(), id))
+
+		url := fmt.Sprintf(dlUrlTemplate, c.BaseURL(), id)
+		return c.SendString(fmt.Sprintf(dlMsgTemplate, url, url))
 	}
 }
 
