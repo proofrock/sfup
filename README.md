@@ -1,5 +1,5 @@
 # sfup - transfer service for commandline usage
-## v0.0.2
+## v0.1.0
 
 Imagine to have two headless servers, and needing to transfer a file between them. But the servers cannot connect to each other. And of course, being on the commandline, you can't use WeTransfer, Dropbox, ecc...
 
@@ -37,7 +37,7 @@ For the `config.yaml` file, see and adapt `config.yaml.template` in this reposit
 
 - One-time *everything*: files are stored up to the first (and only) download
 - E2e encryption, the key is in the download link
-- Checksumming
+- Integrity check
 - Expiration of reservations and files
 - Configuration to set the maximum file size
 - Single binary written in Go
