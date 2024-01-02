@@ -65,7 +65,7 @@ func reserve(db *sql.DB) func(*fiber.Ctx) error {
 
 		id := int(bid.Int64())
 
-		if _, err = db.Exec("INSERT INTO SFUP (id, name, last_upd) VALUES (?,  NULL, CURRENT_TIMESTAMP)", id); err != nil {
+		if _, err = db.Exec("INSERT INTO SFUP (id, last_upd) VALUES (?, CURRENT_TIMESTAMP)", id); err != nil {
 			panic(err)
 		}
 
