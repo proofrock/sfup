@@ -14,9 +14,16 @@ Then, when you need to transfer a file:
 - If the address is authorized, you'll receive an email with a one-time shell command to upload a file (using cURL);
 - Execute the command on server A, upload the file, and the operation will output:
   - A link for downloading with a browser;
-  - A commnand to download from CLI with cURL;
+  - A command to download from CLI with cURL;
 - On server B, execute the command and download the file;
 - The file is then deleted from `sfup`.
+
+## Note
+
+When the file is downloaded, an integrity check is performed. If it fails, the file is downloaded but the call will return `599` as a status code. Depending on your setup, this may be difficult to catch; for example, cURL will print:
+```
+curl: (22) The requested URL returned error: 599
+```
 
 # Install
 
@@ -29,6 +36,8 @@ For the `config.yaml` file, see and adapt `config.yaml.template` in this reposit
 # Features
 
 - One-time *everything*: files are stored up to the first (and only) download
+- E2e encryption, the key is in the download link
+- Checksumming
 - Expiration of reservations and files
 - Configuration to set the maximum file size
 - Single binary written in Go
@@ -45,6 +54,3 @@ It's pretty basic for now. Future plans:
 
 - Better Windows compatibility
 - Quotas
-- E2e encryption
-- Checksumming
-- Web UI to download files
