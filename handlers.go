@@ -15,15 +15,23 @@
 package main
 
 import (
+	"crypto/aes"
+	"crypto/cipher"
+	"crypto/rand"
 	"database/sql"
 	"fmt"
+	"io"
 	"log"
-	"math/rand"
+	"math/big"
 	"os"
 	"slices"
 
 	"github.com/gofiber/fiber/v2"
 )
+
+var maxId = big.NewInt(2147483647)
+
+const AESSize = 128 >> 3
 
 const mailTemplate = `<p>Hi, and thanks for using SFUP!</p>
 <p>&nbsp;&nbsp;Use this command to upload your file:</p>
@@ -45,10 +53,14 @@ func reserve(db *sql.DB) func(*fiber.Ctx) error {
 			return c.Status(fiber.StatusUnauthorized).SendString("Sorry, your email is not authorized")
 		}
 
-		id := rand.Int31()
-
-		_, err := db.Exec("INSERT INTO SFUP (id, name, last_upd) VALUES (?,  NULL, CURRENT_TIMESTAMP)", id)
+		bid, err := rand.Int(rand.Reader, maxId)
 		if err != nil {
+			panic(err)
+		}
+
+		id := int(bid.Int64())
+
+		if _, err = db.Exec("INSERT INTO SFUP (id, name, last_upd) VALUES (?,  NULL, CURRENT_TIMESTAMP)", id); err != nil {
 			panic(err)
 		}
 
@@ -94,9 +106,27 @@ func upload(db *sql.DB) func(*fiber.Ctx) error {
 			panic(err)
 		}
 
-		f.Close()
+		defer f.Close()
 
-		n, err := db.Exec("UPDATE SFUP SET name = ?, last_upd = CURRENT_TIMESTAMP WHERE id = ?", file.Filename, id)
+		key := randBytes(AESSize)
+
+		aesName, err := aes.NewCipher(key)
+		if err != nil {
+			panic(err.Error())
+		}
+		ivName := randBytes(aesName.BlockSize())
+		fnBytes := []byte(file.Filename)
+		encName := make([]byte, len(fnBytes))
+		ctrName := cipher.NewCTR(aesName, ivName)
+		ctrName.XORKeyStream(encName, fnBytes)
+
+		aesFile, err := aes.NewCipher(key)
+		if err != nil {
+			panic(err.Error())
+		}
+		ivFile := randBytes(aesName.BlockSize())
+
+		n, err := db.Exec("UPDATE SFUP SET iv_file = ?, iv_name = ?, name = ?, last_upd = CURRENT_TIMESTAMP WHERE id = ? AND NAME IS NULL", ivFile, ivName, encName, id)
 		if err != nil {
 			panic(err)
 		}
@@ -104,7 +134,20 @@ func upload(db *sql.DB) func(*fiber.Ctx) error {
 			return c.Status(fiber.StatusNotFound).SendString("Invalid ID or already used")
 		}
 
-		c.SaveFile(file, dataDir(id))
+		outFile, err := os.Create(dataDir(id))
+		if err != nil {
+			panic(err)
+		}
+		defer outFile.Close()
+
+		sw := &cipher.StreamWriter{
+			S: cipher.NewCTR(aesFile, ivFile),
+			W: outFile,
+		}
+
+		if _, err := io.Copy(sw, f); err != nil {
+			panic(err)
+		}
 
 		url := fmt.Sprintf(dlUrlTemplate, c.BaseURL(), id)
 		return c.SendString(fmt.Sprintf(dlMsgTemplate, url, url))

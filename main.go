@@ -61,7 +61,9 @@ func dataDir(fname string) string {
 
 const sqlCreation = `CREATE TABLE IF NOT EXISTS SFUP (
 	id INTEGER PRIMARY KEY,
-	name TEXT,
+	iv_file BLOB,
+	iv_name BLOB,
+	name BLOB,
 	last_upd TEXT
 )`
 

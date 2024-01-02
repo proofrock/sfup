@@ -15,7 +15,9 @@
 package main
 
 import (
+	"crypto/rand"
 	"fmt"
+	"io"
 	"net/smtp"
 )
 
@@ -36,4 +38,12 @@ func sendEmail(to, subject, body string) error {
 	}
 
 	return nil
+}
+
+func randBytes(l int) []byte {
+	b := make([]byte, l)
+	if _, err := io.ReadFull(rand.Reader, b); err != nil {
+		panic(err.Error())
+	}
+	return b
 }
