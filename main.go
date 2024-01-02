@@ -122,7 +122,7 @@ func main() {
 		DisableStartupMessage: true,
 	})
 
-	fmt.Fprint(os.Stdout, "SFUP v0.0.2\n")
+	fmt.Fprint(os.Stdout, "SFUP v0.1.0\n")
 
 	app.Use(recover.New())
 
