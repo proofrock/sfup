@@ -1,3 +1,5 @@
+> This project, while functional, is archived. For my needs, its brother [filetunnel](https://github.com/proofrock/filetunnel) is simpler and probably more secure. Thanks for stopping by, if you want to hack on it you're more than welcome!
+
 # sfup - transfer service for commandline usage
 ## v0.1.0
 
